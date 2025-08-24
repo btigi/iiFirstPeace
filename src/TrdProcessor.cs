@@ -2,24 +2,24 @@
 {
     public class TrdProcessor
     {
-        public class EntryType1
+        public class EntryInfo
+        {
+            public int Offset { get; set; }
+            public int Id { get; set; }
+            public byte[] Unknown { get; set; }
+        }
+
+        public class GraphicInfo
         {
             public string Name { get; set; }
             public int Offset { get; set; }
             public int Size { get; set; }
         }
 
-        public class EntryType2
+        public class Entry
         {
             public int NameLength { get; set; }
             public string Name { get; set; }
-            public short Unknown1 { get; set; }
-            public short Unknown2 { get; set; }
-            public short Unknown3 { get; set; }
-            public short Unknown4 { get; set; }
-            public short Unknown5 { get; set; }
-            public short Unknown6 { get; set; }
-            public short Unknown7 { get; set; }
         }
 
         public class EntryType3
@@ -32,119 +32,139 @@
         {
             using var br = new BinaryReader(File.OpenRead(filename));
 
-            // header ??
-            // 2C0A0000 // file count?
-
-            // entryType 0, 36 bytes
-            // xx            xx
-            // 346E 0100 3130333700BE6481C001560004942110A4007A00C0F26800588C211003000000 13422
-            // 556E 0100 3130333800BE6481C001560004942110A4007A00C0F26800588C211003000000 21870
-            // 756E 0100 3130333900BE6481C001560004942110A4007A00C0F26800588C211003000000 30062
-            // 956E 0100 3130343000BE6481C001560004942110A4007A00C0F26800588C211003000000 38254
-            // B56E 0100 3130343100BE6481C001560004942110A4007A00C0F26800588C211003000000 46446
-            // D56E 0100 3130343200BE6481C001560004942110A4007A00C0F26800588C211003000000 54638
-            // F56E 0100 3130343300BE6481C001560004942110A4007A00C0F26800588C211003000000 62830
-            // 156F 0100 3130343400BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 356F 0100 3130343500BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 556F 0100 3130343600BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 756F 0100 3130343700BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 956F 0100 3130343800BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // B66F 0100 3130343900BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // D66F 0100 3130353000BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // F66F 0100 3130353100BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 1670 0100 3130353200BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 3670 0100 3130353300BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 5670 0100 3130353400BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 7670 0100 3130353500BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 9670 0100 3130353600BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // B670 0100 3130353700BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // D670 0100 3130353800BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // F670 0100 3130380000BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 2271 0100 3130390000BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 4D71 0100 3131300000BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 7871 0100 3131303500BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // 9A71 0100 3131303600BE6481C001560004942110A4007A00C0F26800588C211003000000
-            // BB71 0100 3131303700BE6481C001560004942110A4007A00C0F26800588C211003000000
-
+            // header, 0x2C0A0000
             br.BaseStream.Seek(4, SeekOrigin.Begin);
-            for (var i = 0; i < 576; i++)
+
+
+            // Read EntryInfos, the id and offset to the entry (and some unknown identical bytes)
+            // we're now at 0x04
+            const int EntryInfoCount = 576;
+            var entryInfos = new List<EntryInfo>();
+            for (var i = 0; i < EntryInfoCount; i++)
             {
-                var entryNameBytes = br.ReadBytes(36);
-                Console.WriteLine(Convert.ToHexString(entryNameBytes));
+                var offsetToEntry = br.ReadInt32();
+                var idBytes = br.ReadBytes(4);
+                var nullIndex = Array.IndexOf(idBytes, (byte)0);
+                var id = System.Text.Encoding.ASCII.GetString(idBytes, 0, nullIndex >= 0 ? nullIndex : idBytes.Length);
+                var entryNameBytes = br.ReadBytes(28);
+                //Console.WriteLine($"[{i}] 0x{Convert.ToHexString(entryNameBytes)}"); // These seem to be identical in every entry
+                entryInfos.Add(new EntryInfo
+                {
+                    Offset = offsetToEntry,
+                    Id = Convert.ToInt32(id),
+                    Unknown = entryNameBytes
+                });
             }
 
 
-            br.BaseStream.Seek(20740, SeekOrigin.Begin);
-
-            var entryType1Count = 2028;
-
-            var entryType1s = new List<EntryType1>();
-            for (int i = 0; i < entryType1Count; i++)
+            // Read GraphicInfos, the name and offset to the bitmaps themselves
+            // we're now at 0x5104
+            const int GraphicInfoCount = 2028;
+            var graphicInfos = new List<GraphicInfo>();
+            for (int i = 0; i < GraphicInfoCount; i++)
             {
                 var offset = br.ReadInt32();
                 var entryNameBytes = br.ReadBytes(32);
                 var nullIndex = Array.IndexOf(entryNameBytes, (byte)0);
                 var result = System.Text.Encoding.ASCII.GetString(entryNameBytes, 0, nullIndex >= 0 ? nullIndex : entryNameBytes.Length);
-                var entryType1 = new EntryType1
+                graphicInfos.Add(new GraphicInfo
                 {
                     Name = result,
                     Offset = offset,
-                    Size = 0 // Size will be calculated later
-                };
-                entryType1s.Add(entryType1);
+                    Size = 0 // Size is not a stored field and is calculated later
+                });
             }
 
-            for (var i = 0; i < entryType1s.Count - 1; i++)
+            // Calculate the size
+            for (var i = 0; i < graphicInfos.Count - 1; i++)
             {
-                entryType1s[i].Size = entryType1s[i + 1].Offset - entryType1s[i].Offset;
+                graphicInfos[i].Size = graphicInfos[i + 1].Offset - graphicInfos[i].Offset;
             }
 
-            var entryType2Count = 176;
-            var entryType2s = new List<EntryType2>();
-            for (int i = 0; i < entryType2Count; i++)
+
+            // Read the entry entries
+            // we're now at 0x16E34
+            var entryType2s = new List<Entry>();
+            for (int i = 0; i < entryInfos.Count; i++)
             {
+                br.BaseStream.Seek(entryInfos[i].Offset, SeekOrigin.Begin);
+
                 var nameLength = br.ReadInt32();
                 var entryNameBytes = br.ReadBytes(nameLength);
                 var result = System.Text.Encoding.ASCII.GetString(entryNameBytes, 0, nameLength);
-                var unknown1 = br.ReadInt16();
-                var unknown2 = br.ReadInt16(); // 2
-                var unknown3 = br.ReadInt16(); // 0
-                var unknown4 = br.ReadInt16(); // 2
-                var unknown5 = br.ReadInt16(); // 0
-                var unknown6 = br.ReadInt16(); // 0
-                var unknown7 = br.ReadInt16(); // 128
 
-                var entryType2 = new EntryType2
+
+                // The number of bytes in this 'entry' entry varies - for a plain entry is another 14 bytes, but for a unit/building it's an 'EntryType3' entry
+                // The format of entryType3 itself is reasonable except:
+                //   There is a variable number of opening bytes (usually 0x62, 0x72 etc.)
+                //   Not all supporting files are present in every entry
+                var data = br.ReadBytes(14);
+                var additionalBytesInThisEntry = 14;
+                if (result == "Power Plant")
+                {
+                    additionalBytesInThisEntry = 0x62;
+                }
+                if (result == "Defensive Outpost")
+                {
+                    additionalBytesInThisEntry = 0x72;
+                }
+                if (result == "Marine")
+                {
+                    additionalBytesInThisEntry = 0xaa;
+                }
+                if (result == "Main Base")
+                {
+                    additionalBytesInThisEntry = 0x72;
+                }
+                if (result == "Diamond Mine")
+                {
+                    additionalBytesInThisEntry = 0x62;
+                }
+                if (result == "Mine Shaft")
+                {
+                    additionalBytesInThisEntry = 0x62;
+                }
+                if (result == "Metal Deposit")
+                {
+                    additionalBytesInThisEntry = 0x62;
+                }
+
+                if (additionalBytesInThisEntry != 14 || i > 170 && i < 190)
+                {
+                    var l = 0;
+                    if (i + 1 < entryInfos.Count)
+                    {
+                        var o = entryInfos[i + 1].Offset;
+                        var length = o - entryInfos[i].Offset;
+                        l = length;
+                    }
+
+
+                    Console.WriteLine($"[{i}] 0x{Convert.ToHexString(data)} - name: " + result + " additional bytes: " + additionalBytesInThisEntry + " -> " + (l-result.Length));
+                }
+
+                var entry = new Entry
                 {
                     NameLength = nameLength,
                     Name = result,
-                    Unknown1 = unknown1,
-                    Unknown2 = unknown2,
-                    Unknown3 = unknown3,
-                    Unknown4 = unknown4,
-                    Unknown5 = unknown5,
-                    Unknown6 = unknown6,
-                    Unknown7 = unknown7,
                 };
-                entryType2s.Add(entryType2);
+                entryType2s.Add(entry);
             }
-
-
 
             var entryType3s = new List<EntryType3>();
             {
-                // on-map image
-                // build-up image 0 (generic)
-                // build-up image 1
-                // build-up image 2
-                // destroyed image 1
-                // destroyed image 2
-                // portrait image
-                // 'option' image
+                // on-map image                  -> followed by 0x16 bytes
+                // build-up image 0 (generic)    -> followed by 0x8 bytes
+                // build-up image 1              -> followed by 0x8 bytes
+                // build-up image 2              -> followed by 0x16 bytes
+                // destroyed image 1             -> followed by 0x8 bytes
+                // destroyed image 2             -> followed by 0x16 bytes
+                // portrait image                -> followed by 0x8 bytes
+                // 'option' image                -> followed by 0x14 bytes
 
-                // sell
-                // building
-                // attack / destroyed
+                // sell                          -> followed by 0x8 bytes
+                // building                      -> followed by 0x8 bytes
+                // attack / destroyed            -> followed by 0x8 bytes
                 // explode
 
 
@@ -528,7 +548,9 @@
 
 
 
-            foreach (var eo in entryType1s)
+            // Then read bitmaps, from 177,741 (0x2b64d)
+
+            foreach (var eo in graphicInfos)
             {
                 br.BaseStream.Seek(eo.Offset, SeekOrigin.Begin);
                 var bytes = br.ReadBytes(eo.Size);
@@ -537,9 +559,6 @@
                 Directory.CreateDirectory(d);
                 File.WriteAllBytes(output, bytes);
             }
-
-            entryType1Count = 2027;
-
         }
     }
 }
