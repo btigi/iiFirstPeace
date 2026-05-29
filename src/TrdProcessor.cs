@@ -1,11 +1,16 @@
-﻿namespace ii.FirstPeace
+﻿using System.Data;
+using System.Data.OleDb;
+using System.Reflection.Emit;
+using static ii.FirstPeace.TrdProcessor;
+
+namespace ii.FirstPeace
 {
     public class TrdProcessor
     {
         public class EntryInfo
         {
             public int Offset { get; set; }
-            public int Id { get; set; }
+            public int Id { get; set; }  // matches the ID from MDB.Character
             public byte[] Unknown { get; set; }
         }
 
@@ -28,8 +33,445 @@
             public string Name { get; set; }
         }
 
+
+        public class Character
+        {
+            public int ID { get; set; }
+            public string Name { get; set; }
+            public int Speed { get; set; }
+            public int CreateTime { get; set; }
+            public int ClassID { get; set; }
+            public int WpnRange { get; set; }
+            public int Monetary { get; set; }
+            public int Materials { get; set; }
+            public int Energy { get; set; }
+            public int BaseTiles { get; set; }
+            public int Parent { get; set; }
+            public int WpnStrength { get; set; }
+            public int StripID { get; set; }
+            public int Health { get; set; }
+            public int Armor { get; set; }
+            public int Sight { get; set; }
+            public int BasicOptions { get; set; }
+            public int UpgradeTo { get; set; }
+            public int WpnID { get; set; }
+            public int WpnRate { get; set; }
+            public int WpnSpeed { get; set; }
+            public int Alignment { get; set; }
+            public int DependentOn1 { get; set; }
+            public int OppositeRace { get; set; }
+            public int BuildOn { get; set; }
+            public int Styles { get; set; }
+            public int DependentOn2 { get; set; }
+            public int Level { get; set; }
+            public int WpnFrameInc { get; set; }
+        }
+
+        public class CharacterBitmap
+        {
+            public int Id { get; set; }
+            public string Filename { get; set; }
+        }
+
+        public class CharacterCanEnter
+        {
+            public int Id { get; set; }
+            public int CanEnterId { get; set; }
+            public int ReturnValue { get; set; }
+            public int ReturnToId { get; set; }
+            public int Parent { get; set; }
+            public int ProductionValue { get; set; }
+        }
+
+        public class CharacterCategory
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+        }
+
+        public class CharacterFrame
+        {
+            public int Id { get; set; }
+            public int BitmapId { get; set; }
+            public int Parent { get; set; }
+            public int XPos { get; set; }
+            public int YPos { get; set; }
+            public int Frame { get; set; }
+        }
+
+        public class CharacterOption
+        {
+            public int Id { get; set; }
+            public int CharacterId { get; set; }
+            public int Parent { get; set; }
+            public int SetId { get; set; }
+            public int Pos { get; set; }
+        }
+
+        public class CharacterSound
+        {
+            public int Id { get; set; }
+            public int SoundTypeId { get; set; }
+            public int SoundId { get; set; }
+            public int Parent { get; set; }
+        }
+
+        public class CharacterStrip
+        {
+            public int Direction { get; set; }
+            public int XSize { get; set; }
+            public int YSize { get; set; }
+            public int Id { get; set; }
+            public int Parent { get; set; }
+            public int Type { get; set; }
+            public int NumFrames { get; set; }
+        }
+
+        public class Identifier
+        {
+            public int Id { get; set; }
+        }
+
+        public class Level
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+            public int XSize { get; set; }
+            public int YSize { get; set; }
+            public string FileName { get; set; }
+        }
+
+        public class Sound
+        {
+            public int Id { get; set; }
+            public string FileName { get; set; }
+        }
+
+        public class Structure
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+            public int BitmapId { get; set; }
+            public int Parent { get; set; }
+            public int BaseCategory { get; set; }
+        }
+
+        public class StructureCategory
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+        }
+
+        public class Tile
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+            public int Parent { get; set; }
+            public int Category { get; set; }
+            public int MapColor { get; set; }
+        }
+
+        public class TileBitmap
+        {
+            public int Id { get; set; }
+            public string FileName { get; set; }
+        }
+
+        public class TileCategory
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+        }
+
+        public class TileSection
+        {
+            public int Id { get; set; }
+            public int Parent { get; set; }
+            public int BitmapId { get; set; }
+            public int Pos { get; set; }
+            public int SetId { get; set; }
+        }
+
         public void Process(string filename)
         {
+            var connectionString = @"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=F:\final\dom.mdb";
+            var sql = "SELECT * FROM [Character]";
+
+            var characters = new List<Character>();
+            var characterBitmaps = new List<CharacterBitmap>();
+            var characterCanEnters = new List<CharacterCanEnter>();
+            var characterCategories = new List<CharacterCategory>();
+            var characterFrames = new List<CharacterFrame>();
+            var characterOptions = new List<CharacterOption>();
+            var characterSounds = new List<CharacterSound>();
+            var characterStrips = new List<CharacterStrip>();
+            var identifiers = new List<Identifier>();
+            var levels = new List<Level>();
+            var sounds = new List<Sound>();
+            var structures = new List<Structure>();
+            var structureCategories = new List<StructureCategory>();
+            var tiles = new List<Tile>();
+            var tileBitmaps = new List<TileBitmap>();
+            var tileCategories = new List<TileCategory>();
+            var tileSections = new List<TileSection>();
+
+            using (var connection = new OleDbConnection(connectionString))
+            {
+                connection.Open();
+
+                try
+                {
+                    var command = new OleDbCommand(sql, connection);
+                    using OleDbDataReader reader = command.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        var character = new Character();
+                        character.ID = Convert.ToInt32(reader["ID"]);
+                        character.Name = Convert.ToString(reader["Name"]);
+                        character.Speed = Convert.ToInt32(reader["Speed"]);
+                        character.CreateTime = Convert.ToInt32(reader["CreateTime"]);
+                        character.ClassID = Convert.ToInt32(reader["ClassID"]);
+                        character.WpnRange = Convert.ToInt32(reader["WpnRange"]);
+                        character.Monetary = Convert.ToInt32(reader["Monetary"]);
+                        character.Materials = Convert.ToInt32(reader["Materials"]);
+                        character.Energy = Convert.ToInt32(reader["Energy"]);
+                        character.BaseTiles = Convert.ToInt32(reader["BaseTiles"]);
+                        character.Parent = Convert.ToInt32(reader["Parent"]);
+                        character.WpnStrength = Convert.ToInt32(reader["WpnStrength"]);
+                        character.StripID = Convert.ToInt32(reader["StripID"]);
+                        character.Health = Convert.ToInt32(reader["Health"]);
+                        character.Armor = Convert.ToInt32(reader["Armor"]);
+                        character.Sight = Convert.ToInt32(reader["Sight"]);
+                        character.BasicOptions = Convert.ToInt32(reader["BasicOptions"]);
+                        character.UpgradeTo = Convert.ToInt32(reader["UpgradeTo"]);
+                        character.WpnID = Convert.ToInt32(reader["WpnID"]);
+                        character.WpnRate = Convert.ToInt32(reader["WpnRate"]);
+                        character.WpnSpeed = Convert.ToInt32(reader["WpnSpeed"]);
+                        character.Alignment = Convert.ToInt32(reader["Alignment"]);
+                        character.DependentOn1 = Convert.ToInt32(reader["DependentOn1"]);
+                        character.OppositeRace = Convert.ToInt32(reader["OppositeRace"]);
+                        character.BuildOn = Convert.ToInt32(reader["BuildOn"]);
+                        character.Styles = Convert.ToInt32(reader["Styles"]);
+                        character.DependentOn2 = Convert.ToInt32(reader["DependentOn2"]);
+                        character.Level = Convert.ToInt32(reader["Level"]);
+                        character.WpnFrameInc = Convert.ToInt32(reader["WpnFrameInc"]);
+                        characters.Add(character);
+                    }
+                    reader.Close();
+
+
+                    command.CommandText = "SELECT * FROM [CharacterBitmaps]";
+                    using OleDbDataReader reader2 = command.ExecuteReader();
+                    while (reader2.Read())
+                    {
+                        var characterBitmap = new CharacterBitmap();
+                        characterBitmap.Id = Convert.ToInt32(reader2["ID"]);
+                        characterBitmap.Filename = Convert.ToString(reader2["FileName"]);
+                        characterBitmaps.Add(characterBitmap);
+                    }
+                    reader2.Close();
+
+                    command.CommandText = "SELECT * FROM [CharacterCanEnter]";
+                    using OleDbDataReader reader3 = command.ExecuteReader();
+                    while (reader3.Read())
+                    {
+                        var characterCanEnter = new CharacterCanEnter();
+                        characterCanEnter.Id = Convert.ToInt32(reader3["ID"]);
+                        characterCanEnter.CanEnterId = Convert.ToInt32(reader3["CanEnterId"]);
+                        characterCanEnter.ReturnValue = Convert.ToInt32(reader3["ReturnValue"]);
+                        characterCanEnter.ReturnToId = Convert.ToInt32(reader3["ReturnToId"]);
+                        characterCanEnter.Parent = Convert.ToInt32(reader3["Parent"]);
+                        characterCanEnter.ProductionValue = Convert.ToInt32(reader3["ProductionValue"]);
+                        characterCanEnters.Add(characterCanEnter);
+                    }
+                    reader3.Close();
+
+                    command.CommandText = "SELECT * FROM [CharacterCategory]";
+                    using OleDbDataReader reader4 = command.ExecuteReader();
+                    while (reader4.Read())
+                    {
+                        var characterCategory = new CharacterCategory();
+                        characterCategory.Id = Convert.ToInt32(reader4["ID"]);
+                        characterCategory.Name = Convert.ToString(reader4["Name"]);
+                        characterCategories.Add(characterCategory);
+                    }
+                    reader4.Close();
+
+                    command.CommandText = "SELECT * FROM [CharacterFrame]";
+                    using OleDbDataReader reader5 = command.ExecuteReader();
+                    while (reader5.Read())
+                    {
+                        var characterFrame = new CharacterFrame();
+                        characterFrame.Id = Convert.ToInt32(reader5["ID"]);
+                        characterFrame.BitmapId = Convert.ToInt32(reader5["BitmapId"]);
+                        characterFrame.Parent = Convert.ToInt32(reader5["Parent"]);
+                        characterFrame.XPos = Convert.ToInt32(reader5["XPos"]);
+                        characterFrame.YPos = Convert.ToInt32(reader5["YPos"]);
+                        characterFrame.Frame = Convert.ToInt32(reader5["Frame"]);
+                        characterFrames.Add(characterFrame);
+                    }
+                    reader5.Close();
+
+                    command.CommandText = "SELECT * FROM [CharacterOptions]";
+                    using OleDbDataReader reader6 = command.ExecuteReader();
+                    while (reader6.Read())
+                    {
+                        var characterOption = new CharacterOption();
+                        characterOption.Id = Convert.ToInt32(reader6["ID"]);
+                        characterOption.CharacterId = Convert.ToInt32(reader6["CharacterId"]);
+                        characterOption.Parent = Convert.ToInt32(reader6["Parent"]);
+                        characterOption.SetId = Convert.ToInt32(reader6["SetId"]);
+                        characterOption.Pos = Convert.ToInt32(reader6["Pos"]);
+                        characterOptions.Add(characterOption);
+                    }
+                    reader6.Close();
+
+                    command.CommandText = "SELECT * FROM [CharacterSounds]";
+                    using OleDbDataReader reader7 = command.ExecuteReader();
+                    while (reader7.Read())
+                    {
+                        var characterSound = new CharacterSound();
+                        characterSound.Id = Convert.ToInt32(reader7["ID"]);
+                        characterSound.SoundTypeId = Convert.ToInt32(reader7["SoundTypeId"]);
+                        characterSound.SoundId = Convert.ToInt32(reader7["SoundId"]);
+                        characterSound.Parent = Convert.ToInt32(reader7["Parent"]);
+                        characterSounds.Add(characterSound);
+                    }
+                    reader7.Close();
+
+                    command.CommandText = "SELECT * FROM [CharacterStrip]";
+                    using OleDbDataReader reader8 = command.ExecuteReader();
+                    while (reader8.Read())
+                    {
+                        var characterStrip = new CharacterStrip();
+                        characterStrip.Direction = Convert.ToInt32(reader8["Direction"]);
+                        characterStrip.XSize = Convert.ToInt32(reader8["XSize"]);
+                        characterStrip.YSize = Convert.ToInt32(reader8["YSize"]);
+                        characterStrip.Id = Convert.ToInt32(reader8["Id"]);
+                        characterStrip.Parent = Convert.ToInt32(reader8["Parent"]);
+                        characterStrip.Type = Convert.ToInt32(reader8["Type"]);
+                        characterStrip.NumFrames = Convert.ToInt32(reader8["NumFrames"]);
+                        characterStrips.Add(characterStrip);
+                    }
+                    reader8.Close();
+
+                    command.CommandText = "SELECT * FROM [Id]";
+                    using OleDbDataReader reader9 = command.ExecuteReader();
+                    while (reader9.Read())
+                    {
+                        var identifier = new Identifier();
+                        identifier.Id = Convert.ToInt32(reader9["Id"]);
+                        identifiers.Add(identifier);
+                    }
+                    reader9.Close();
+
+                    command.CommandText = "SELECT * FROM [Levels]";
+                    using OleDbDataReader reader10 = command.ExecuteReader();
+                    while (reader10.Read())
+                    {
+                        var level = new Level();
+                        level.Id = Convert.ToInt32(reader10["Id"]);
+                        level.Name = Convert.ToString(reader10["Name"]);
+                        level.XSize = Convert.ToInt32(reader10["XSize"]);
+                        level.YSize = Convert.ToInt32(reader10["YSize"]);
+                        level.FileName = Convert.ToString(reader10["FileName"]);
+                        levels.Add(level);
+                    }
+                    reader10.Close();
+
+                    command.CommandText = "SELECT * FROM [Sounds]";
+                    using OleDbDataReader reader11 = command.ExecuteReader();
+                    while (reader11.Read())
+                    {
+                        var sound = new Sound();
+                        sound.Id = Convert.ToInt32(reader11["Id"]);
+                        sound.FileName = Convert.ToString(reader11["FileName"]);
+                        sounds.Add(sound);
+                    }
+                    reader11.Close();
+
+                    command.CommandText = "SELECT * FROM [Structure]";
+                    using OleDbDataReader reader12 = command.ExecuteReader();
+                    while (reader12.Read())
+                    {
+                        var structure = new Structure();
+                        structure.Id = Convert.ToInt32(reader12["Id"]);
+                        structure.Name = Convert.ToString(reader12["Name"]);
+                        structure.BitmapId = Convert.ToInt32(reader12["BitmapId"]);
+                        structure.Parent = Convert.ToInt32(reader12["Parent"]);
+                        structure.BaseCategory = Convert.ToInt32(reader12["BaseCategory"]);
+                        structures.Add(structure);
+                    }
+                    reader12.Close();
+
+                    command.CommandText = "SELECT * FROM [StructureCategory]";
+                    using OleDbDataReader reader13 = command.ExecuteReader();
+                    while (reader13.Read())
+                    {
+                        var structureCategory = new StructureCategory();
+                        structureCategory.Id = Convert.ToInt32(reader13["Id"]);
+                        structureCategory.Name = Convert.ToString(reader13["Name"]);
+                        structureCategories.Add(structureCategory);
+                    }
+                    reader13.Close();
+
+                    command.CommandText = "SELECT * FROM [Tile]";
+                    using OleDbDataReader reader14 = command.ExecuteReader();
+                    while (reader14.Read())
+                    {
+                        var tile = new Tile();
+                        tile.Id = Convert.ToInt32(reader14["Id"]);
+                        tile.Name = Convert.ToString(reader14["Name"]);
+                        tile.Parent = Convert.ToInt32(reader14["Parent"]);
+                        tile.Category = Convert.ToInt32(reader14["Category"]);
+                        tile.MapColor = Convert.ToInt32(reader14["MapColor"]);
+                        tiles.Add(tile);
+                    }
+                    reader14.Close();
+
+                    command.CommandText = "SELECT * FROM [TileBitmaps]";
+                    using OleDbDataReader reader15 = command.ExecuteReader();
+                    while (reader15.Read())
+                    {
+                        var tileBitmap = new TileBitmap();
+                        tileBitmap.Id = Convert.ToInt32(reader15["Id"]);
+                        tileBitmap.FileName = Convert.ToString(reader15["FileName"]);
+                        tileBitmaps.Add(tileBitmap);
+                    }
+                    reader15.Close();
+
+                    command.CommandText = "SELECT * FROM [TileCategory]";
+                    using OleDbDataReader reader16 = command.ExecuteReader();
+                    while (reader16.Read())
+                    {
+                        var tileCategory = new TileCategory();
+                        tileCategory.Id = Convert.ToInt32(reader16["Id"]);
+                        tileCategory.Name = Convert.ToString(reader16["Name"]);
+                        tileCategories.Add(tileCategory);
+                    }
+                    reader16.Close();
+
+                    // TileSection
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+                finally
+                {
+                    if (connection.State == ConnectionState.Open)
+                    {
+                        connection.Close();
+                    }
+                }
+            }
+
+
+
+
+
+
             using var br = new BinaryReader(File.OpenRead(filename));
 
             // header, 0x2C0A0000
@@ -92,8 +534,9 @@
                 var nameLength = br.ReadInt32();
                 var entryNameBytes = br.ReadBytes(nameLength);
                 var result = System.Text.Encoding.ASCII.GetString(entryNameBytes, 0, nameLength);
+                var u1 = br.ReadInt16();
 
-
+                /*
                 // The number of bytes in this 'entry' entry varies - for a plain entry is another 14 bytes, but for a unit/building it's an 'EntryType3' entry
                 // The format of entryType3 itself is reasonable except:
                 //   There is a variable number of opening bytes (usually 0x62, 0x72 etc.)
@@ -139,9 +582,13 @@
                         l = length;
                     }
 
-
                     Console.WriteLine($"[{i}] 0x{Convert.ToHexString(data)} - name: " + result + " additional bytes: " + additionalBytesInThisEntry + " -> " + (l-result.Length));
                 }
+                */
+
+                // for sounds u1 is the sound id
+
+                Console.WriteLine($"[{i}] {result} {u1} (id {entryInfos[i].Id})");
 
                 var entry = new Entry
                 {
