@@ -192,6 +192,14 @@ namespace ii.FirstPeace
             public int SetId { get; set; }
         }
 
+        public class Transition
+        {
+            public int Id { get; set; }
+            public int TileId { get; set; }
+            public int Parent { get; set; }
+            public int TransitionId { get; set; }
+        }
+
         public void Process(string filename)
         {
             var connectionString = @"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=F:\final\dom.mdb";
@@ -214,6 +222,7 @@ namespace ii.FirstPeace
             var tileBitmaps = new List<TileBitmap>();
             var tileCategories = new List<TileCategory>();
             var tileSections = new List<TileSection>();
+            var transitions = new List<Transition>();
 
             using (var connection = new OleDbConnection(connectionString))
             {
@@ -451,7 +460,35 @@ namespace ii.FirstPeace
                     }
                     reader16.Close();
 
-                    // TileSection
+                    command.CommandText = "SELECT * FROM [TileSection]";
+                    using OleDbDataReader reader17 = command.ExecuteReader();
+                    while (reader17.Read())
+                    {
+                        var tileSection = new TileSection();
+                        tileSection.Id = Convert.ToInt32(reader17["Id"]);
+                        tileSection.Parent = Convert.ToInt32(reader17["Parent"]);
+                        tileSection.BitmapId = Convert.ToInt32(reader17["BitmapId"]);
+                        tileSection.Pos = Convert.ToInt32(reader17["Pos"]);
+                        tileSection.SetId = Convert.ToInt32(reader17["SetId"]);
+                        tileSections.Add(tileSection);
+                    }
+                    reader17.Close();
+
+                    command.CommandText = "SELECT * FROM [Transition]";
+                    using OleDbDataReader reader18 = command.ExecuteReader();
+                    while (reader18.Read())
+                    {
+                        var transition = new Transition();
+                        transition.Id = Convert.ToInt32(reader18["Id"]);
+                        transition.TileId = Convert.ToInt32(reader18["TileId"]);
+                        transition.Parent = Convert.ToInt32(reader18["Parent"]);
+                        transition.TransitionId = Convert.ToInt32(reader18["TransitionId"]);
+                        transitions.Add(transition);
+                    }
+                    reader18.Close();
+
+                    //Transition
+
 
                 }
                 catch (Exception ex)
